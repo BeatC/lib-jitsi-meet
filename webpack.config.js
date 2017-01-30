@@ -2,10 +2,24 @@
 
 var child_process = require('child_process'); // eslint-disable-line camelcase
 var process = require('process');
+var webpack = require('webpack');
 
 var minimize
     = process.argv.indexOf('-p') !== -1
         || process.argv.indexOf('--optimize-minimize') !== -1;
+var plugins = [];
+
+if (minimize) {
+    plugins.push(new webpack.LoaderOptionsPlugin({
+        minimize: true
+    }));
+    plugins.push(new webpack.optimize.UglifyJsPlugin({
+        compress: {
+            warnings: true
+        },
+        sourceMap: true
+    }));
+}
 
 module.exports = {
     devtool: 'source-map',
@@ -13,10 +27,10 @@ module.exports = {
         'lib-jitsi-meet': './JitsiMeetJS.js'
     },
     module: {
-        loaders: [ {
+        rules: [ {
             // Version this build of the lib-jitsi-meet library.
 
-            loader: 'string-replace',
+            loader: 'string-replace-loader',
             query: {
                 flags: 'g',
                 replace:
@@ -40,10 +54,16 @@ module.exports = {
                 __dirname + '/modules/RTC/adapter.screenshare.js',
                 __dirname + '/node_modules/'
             ],
-            loader: 'babel',
+            loader: 'babel-loader',
             query: {
                 presets: [
-                    'es2015'
+                    [
+                        'es2015',
+
+                        // Tell babel to avoid compiling imports into CommonJS
+                        // so that webpack may do tree shaking.
+                        { modules: false }
+                    ]
                 ]
             },
             test: /\.js$/
@@ -60,5 +80,6 @@ module.exports = {
         library: 'JitsiMeetJS',
         libraryTarget: 'umd',
         sourceMapFilename: '[name].' + (minimize ? 'min' : 'js') + '.map'
-    }
+    },
+    plugins: plugins
 };
